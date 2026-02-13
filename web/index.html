@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>ارسال پیام ناشناس</title>
+    <style>
+        /* استایل پایه برای تست */
+        body { font-family: sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; }
+        textarea { width: 100%; height: 150px; margin-bottom: 10px; }
+        .hidden { display: none; } /* مخفی کردن فیلد تله */
+        #status { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>ارسال بازخورد امن</h2>
+    <p>پیام شما مستقیماً و بدون ذخیره هیچ‌گونه ردپایی (IP) بایگانی می‌شود.</p>
+
+    <form id="feedbackForm">
+        <textarea id="message" placeholder="متن خود را اینجا بنویسید..." required></textarea>
+
+        <div class="hidden">
+            <input type="text" id="hp" name="hp" tabindex="-1" autocomplete="off">
+        </div>
+
+        <button type="submit" id="submitBtn">ارسال پیام</button>
+    </form>
+
+    <div id="status"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
