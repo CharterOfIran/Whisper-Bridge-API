@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -12,7 +13,7 @@ import (
 
 func Handler(w http.ResponseWriter, r *http.Request) {
 	// CORS Headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// w.Header().Set("Access-Control-Allow-Origin", "*")
 	// ... سایر تنظیمات CORS
 
 	// ۱. استفاده از ماژول لیمیتر
@@ -24,10 +25,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	// ۲. دریافت داده
 	var req struct{ Message, Honeypot string }
-	json.NewDecoder(r.Body).Decode(&req)
-
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
 	// ۳. فیلتر ربات
 	if req.Honeypot != "" {
+		// برای ربات‌ها وانمود می‌کنیم که موفق بودیم!
+		w.WriteHeader(http.StatusCreated)
 		return
 	}
 
@@ -35,8 +40,20 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	cleanMsg := security.Clean(req.Message)
 
 	// ۵. ارسال به گیت‌هاب
-	client := github.NewClient(os.Getenv("GITHUB_TOKEN"), os.Getenv("GITHUB_OWNER"), os.Getenv("GITHUB_REPO"))
-	client.SaveComment(cleanMsg)
+	client := github.NewClient(
+		os.Getenv("GITHUB_TOKEN"),
+		os.Getenv("GITHUB_OWNER"),
+		os.Getenv("GITHUB_REPO"),
+	)
+
+	// دریافت نتیجه و خطا از تابع
+	_, err := client.SaveComment(cleanMsg)
+	if err != nil {
+		// چاپ خطا در لاگ‌های ورسل برای عیب‌یابی
+		fmt.Printf("GitHub Error: %v\n", err)
+		http.Error(w, "Failed to save feedback", http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusCreated)
 }
