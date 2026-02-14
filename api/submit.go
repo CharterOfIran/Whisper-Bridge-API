@@ -12,10 +12,6 @@ import (
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	// CORS Headers
-	// w.Header().Set("Access-Control-Allow-Origin", "*")
-	// ... سایر تنظیمات CORS
-
 	// ۱. استفاده از ماژول لیمیتر
 	ip := r.Header.Get("X-Forwarded-For")
 	if ratelimit.IsLimited(ip) {
