@@ -34,6 +34,7 @@ func (c *Client) SaveComment(message string) (*github.RepositoryContentResponse,
 	opts := &github.RepositoryContentFileOptions{
 		Message: github.String("New anonymous feedback received"),
 		Content: content,
+		Branch:  github.String("main"), // حتما چک کن نام برنچ ریپوی مقصدت main باشه
 	}
 
 	res, _, err := c.client.Repositories.CreateFile(ctx, c.owner, c.repo, fileName, opts)
