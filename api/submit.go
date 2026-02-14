@@ -12,6 +12,10 @@ import (
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
+	// CORS Headers
+	// w.Header().Set("Access-Control-Allow-Origin", "*")
+	// ... سایر تنظیمات CORS
+
 	// ۱. استفاده از ماژول لیمیتر
 	ip := r.Header.Get("X-Forwarded-For")
 	if ratelimit.IsLimited(ip) {
@@ -20,7 +24,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ۲. دریافت داده
-	var req struct{ Message, Honeypot string }
+	var req struct {
+		Message  string `json:"message"`
+		Honeypot string `json:"hp"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
