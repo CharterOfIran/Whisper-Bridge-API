@@ -2,21 +2,17 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
-	"feedback-service/internal/github"
 	"feedback-service/internal/ratelimit"
 	"feedback-service/internal/security"
+	"feedback-service/internal/storage"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	// CORS Headers
-	// w.Header().Set("Access-Control-Allow-Origin", "*")
-	// ... سایر تنظیمات CORS
-
-	// ۱. استفاده از ماژول لیمیتر
+	// ۱. لیمیتر (Rate Limit)
 	ip := r.Header.Get("X-Forwarded-For")
 	if ratelimit.IsLimited(ip) {
 		http.Error(w, "Too many requests", http.StatusTooManyRequests)
@@ -32,29 +28,34 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
+
 	// ۳. فیلتر ربات
 	if req.Honeypot != "" {
-		// برای ربات‌ها وانمود می‌کنیم که موفق بودیم!
 		w.WriteHeader(http.StatusCreated)
 		return
 	}
 
-	// ۴. استفاده از ماژول امنیتی
+	// ۴. پاک‌سازی قبل از رمزنگاری (طبق استاندارد پروژه)
 	cleanMsg := security.Clean(req.Message)
 
-	// ۵. ارسال به گیت‌هاب
-	client := github.NewClient(
-		os.Getenv("GITHUB_TOKEN"),
-		os.Getenv("GITHUB_OWNER"),
-		os.Getenv("GITHUB_REPO"),
-	)
+	// ۵. رمزنگاری ترکیبی (Hybrid Encryption)
 
-	// دریافت نتیجه و خطا از تابع
-	_, err := client.SaveComment(cleanMsg)
+	rawKey := os.Getenv("RSA_PUBLIC_KEY")
+	// تبدیل کاراکترهای متنی n\ به خط جدید واقعی برای درک توسط بلوک PEM
+	fixedKey := strings.ReplaceAll(rawKey, "\\n", "\n")
+	payload, err := security.EncryptHybrid(cleanMsg, fixedKey)
 	if err != nil {
-		// چاپ خطا در لاگ‌های ورسل برای عیب‌یابی
-		fmt.Printf("GitHub Error: %v\n", err)
-		http.Error(w, "Failed to save feedback", http.StatusInternalServerError)
+		http.Error(w, "Encryption failed", http.StatusInternalServerError)
+		return
+	}
+
+	// تبدیل ساختار رمزنگاری شده به یک رشته واحد (Blob) برای گمنامی کامل
+	finalBlob, _ := json.Marshal(payload)
+
+	// ۶. ذخیره‌سازی در Redis
+	err = storage.SaveToQueue(string(finalBlob))
+	if err != nil {
+		http.Error(w, "Failed to queue message", http.StatusInternalServerError)
 		return
 	}
 
